@@ -119,7 +119,7 @@ func mriRender(t *testing.T, tpl, mode string, vars map[string]string) string {
 	for k, v := range vars {
 		setup.WriteString(k + " = " + v + "; ")
 	}
-	script := setup.String() +
+	script := `$stdout.binmode; ` + setup.String() +
 		`m = ARGV[0]; tpl = $stdin.binmode.read.force_encoding("UTF-8"); ` +
 		`print ERB.new(tpl, trim_mode:(m=="" ? nil : m)).result(binding)`
 	cmd := exec.Command("ruby", "-rerb", "-e", script, "--", mode)
@@ -141,7 +141,7 @@ func mriEval(t *testing.T, src string, vars map[string]string) string {
 		setup.WriteString(k + " = " + v + "; ")
 	}
 	// The compiled src (read from stdin) ends with "; _erbout"; eval returns it.
-	script := setup.String() + `print eval($stdin.binmode.read.force_encoding("UTF-8"))`
+	script := `$stdout.binmode; ` + setup.String() + `print eval($stdin.binmode.read.force_encoding("UTF-8"))`
 	cmd := exec.Command("ruby", "-e", script)
 	cmd.Stdin = strings.NewReader(src)
 	out, err := cmd.Output()

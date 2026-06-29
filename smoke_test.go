@@ -10,7 +10,7 @@ import (
 func mriSrc(t *testing.T, tpl, mode string) string {
 	t.Helper()
 	// Read the (possibly NUL-bearing) template from stdin to avoid argv limits.
-	script := `m = ARGV[0]; tpl = $stdin.binmode.read.force_encoding("UTF-8"); ` +
+	script := `$stdout.binmode; m = ARGV[0]; tpl = $stdin.binmode.read.force_encoding("UTF-8"); ` +
 		`print ERB.new(tpl, trim_mode:(m=="" ? nil : m)).src`
 	cmd := exec.Command("ruby", "-rerb", "-e", script, "--", mode)
 	cmd.Stdin = strings.NewReader(tpl)

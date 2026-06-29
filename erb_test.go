@@ -426,7 +426,7 @@ func TestUtilDifferentialAgainstMRI(t *testing.T) {
 
 func mriUtil(t *testing.T, fn, in string) string {
 	t.Helper()
-	script := `s = $stdin.binmode.read.force_encoding("UTF-8"); print ERB::Util.` + fn + `(s)`
+	script := `$stdout.binmode; s = $stdin.binmode.read.force_encoding("UTF-8"); print ERB::Util.` + fn + `(s)`
 	cmd := exec.Command("ruby", "-rerb", "-e", script)
 	cmd.Stdin = strings.NewReader(in)
 	out, err := cmd.Output()
