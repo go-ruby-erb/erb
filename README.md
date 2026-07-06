@@ -44,6 +44,14 @@ binary on every supported platform:
   bytes and multi-byte UTF-8 round-trip byte-for-byte (`héllo` → `"h\xC3\xA9llo"`).
 - **`ERB::Util`** — `HTMLEscape` (`&<>"'` → entities, `'` → `&#39;`) and
   `URLEncode` (percent-encode all but `A-Za-z0-9-_.~`, upper-case hex).
+- **erubi dialect** (`Mode: ModeErubi`) — reproduces the [erubi](https://github.com/jeremyevans/erubi)
+  gem's `Erubi::Engine` whitespace/trim semantics, so consumers that render through
+  erubi (Sinatra, Rails) get byte-identical output. erubi matches **no** classic
+  `trim_mode`: a standalone `<%= x %>\n` **keeps** its newline (whereas `<>` trims
+  it), a line holding only a `<% … %>` code or `<%# … %>` comment tag is trimmed
+  **automatically** (whereas the default keeps it and `-` needs explicit `<%- … -%>`),
+  `-%>` / `=%>` chomps an expression's newline, and `<%==` HTML-escapes. Additive:
+  the default `ModeERB` is unchanged, so `require "erb"` consumers are unaffected.
 
 CGO-free, dependency-free, **100% test coverage**, `gofmt` + `go vet` clean, and
 green across the six 64-bit Go targets (amd64, arm64, riscv64, loong64, ppc64le,
@@ -94,13 +102,30 @@ src, _, _ := erb.Compile("<ul>\n<% items.each do |i| -%>\n  <li><%= i %></li>\n<
 	erb.Options{TrimMode: "-", EOutVar: "buf"})
 ```
 
+In erubi-compatible mode (for Sinatra/Rails-style rendering) the standalone
+`<%= … %>` newline is kept and standalone `<% … %>` lines are trimmed:
+
+```go
+// "<%= yield %>\n"  ->  renders "…\n" (newline kept), matching erubi — not "…"
+src, _, _ := erb.Compile("<%= yield %>\n<% items.each do |i| %>\n<%= i %>\n<% end %>\n",
+	erb.Options{Mode: erb.ModeErubi})
+```
+
 ## API
 
 ```go
 type Options struct {
-	TrimMode string // MRI trim_mode: "", "-", ">", "<>", "%" and combinations
+	Mode     Mode   // ModeERB (default, classic MRI ERB) or ModeErubi (erubi-compatible)
+	TrimMode string // MRI trim_mode: "", "-", ">", "<>", "%" and combinations (ModeERB only)
 	EOutVar  string // output buffer var name; default "_erbout"
 }
+
+// Mode selects the ERB dialect Compile targets.
+type Mode int
+const (
+	ModeERB   Mode = iota // classic MRI ERB (honours TrimMode)
+	ModeErubi             // erubi gem's Erubi::Engine semantics (TrimMode ignored)
+)
 
 // Compile returns the Ruby source that, when eval'd against a binding, renders
 // the template, plus the magic-encoding comment line — matching MRI's
@@ -122,7 +147,9 @@ func (c *Compiler) Compile(s string) (src, magicComment string, err error)
 The suite includes a **differential oracle**: a wide template corpus (every tag
 kind, the literals, all trim modes, multiline/quoted/unicode bodies) is compiled
 both here and by the system `ruby`, comparing the emitted Ruby source **and** the
-rendered result byte-for-byte, plus `ERB::Util` against MRI.
+rendered result byte-for-byte, plus `ERB::Util` against MRI. A parallel oracle
+renders the erubi-mode corpus against the installed **erubi gem** (`Erubi::Engine`)
+for byte-identical parity.
 
 ```sh
 COVERPKG=$(go list ./... | paste -sd, -)

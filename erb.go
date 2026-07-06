@@ -19,9 +19,35 @@ import (
 	"strings"
 )
 
+// Mode selects which ERB dialect Compile targets.
+type Mode int
+
+const (
+	// ModeERB is classic MRI ERB (the default): Compile reproduces
+	// ERB.new(str, trim_mode:, eoutvar:) byte-for-byte, honouring TrimMode.
+	ModeERB Mode = iota
+
+	// ModeErubi reproduces the erubi gem's Erubi::Engine whitespace/trim
+	// semantics (default engine options: trim on, escape off), so consumers that
+	// render through erubi — Sinatra, Rails — get byte-identical output. It
+	// differs from every classic ERB trim_mode: a standalone "<%= x %>\n" keeps
+	// its trailing newline (unlike trim_mode "<>", which trims it), while a line
+	// holding only a "<% ... %>" code (or "<%# ... %>" comment) tag is trimmed
+	// automatically (unlike the default, and unlike trim_mode "-", which needs
+	// the explicit "<%- ... -%>" form). "-%>" / "=%>" chomps the trailing newline
+	// on an expression, and "<%==" HTML-escapes. In this mode TrimMode is ignored
+	// (erubi has no trim_mode); EOutVar still selects the buffer variable name.
+	ModeErubi
+)
+
 // Options configures Compile, mirroring the keyword arguments of MRI's
 // ERB.new(str, trim_mode:, eoutvar:).
 type Options struct {
+	// Mode selects the ERB dialect. The zero value, ModeERB, is classic MRI ERB
+	// and leaves every existing consumer unchanged; ModeErubi opts in to
+	// erubi-compatible output.
+	Mode Mode
+
 	// TrimMode is MRI's trim_mode string. The recognised characters are "-",
 	// ">", "<>" and "%", and the one- or two-character combinations MRI accepts
 	// (e.g. "%-", "%>", "%<>"). An empty string means no trimming. Of the
@@ -50,6 +76,9 @@ func Compile(template string, opts Options) (src string, magicComment string, er
 	eoutvar := opts.EOutVar
 	if eoutvar == "" {
 		eoutvar = "_erbout"
+	}
+	if opts.Mode == ModeErubi {
+		return compileErubi(template, eoutvar)
 	}
 	c := NewCompiler(opts.TrimMode)
 	c.EOutVar = eoutvar

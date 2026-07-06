@@ -30,6 +30,9 @@ jobs:
         uses: ruby/setup-ruby@v1
         with:
           ruby-version: "3.4"
+      # erubi powers the erubi-dialect parity oracle (Sinatra/Rails render via it).
+      - if: runner.os != 'Windows'
+        run: gem install --no-document erubi
       - run: go version
       - run: go vet ./...
       - run: go build ./...
