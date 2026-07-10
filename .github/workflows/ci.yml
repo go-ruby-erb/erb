@@ -29,7 +29,7 @@ jobs:
       - if: runner.os != 'Windows'
         uses: ruby/setup-ruby@v1
         with:
-          ruby-version: "3.4"
+          ruby-version: "3.4.10"
       # erubi powers the erubi-dialect parity oracle (Sinatra/Rails render via it).
       - if: runner.os != 'Windows'
         run: gem install --no-document erubi
